@@ -1,0 +1,16 @@
+version: "2.1"
+services:
+
+  rest-consumer:
+    extends:
+      file: docker-compose-base.yml
+      service: rest-consumer-base
+    ports:
+      - "${EXPOSE_PORT}:${EXPOSE_PORT}"
+    networks:
+      - aether
+
+networks:
+  aether:
+    external:
+      name: aether_internal

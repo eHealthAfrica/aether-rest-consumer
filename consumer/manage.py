@@ -18,29 +18,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pytest
-import requests  # noqa
-from app.main import RESTConsumer
+from app.main import run
 
-kafka_server = "kafka-test:29099"
-
-
-# We can use 'mark' distinctions to chose which tests are run and which assets are built
-# @pytest.mark.integration
-# @pytest.mark.unit
-# When possible use fixtures for reusable test assets
-# @pytest.fixture(scope="session")
-
-
-class _MockConsumer(RESTConsumer):
-
-    def __init__(self):
-        self.killed = False
-
-
-@pytest.mark.integration
-@pytest.mark.unit
-@pytest.fixture(scope="function")
-def MockConsumer():
-    consumer = _MockConsumer()
-    return consumer
+run()

@@ -31,5 +31,17 @@ from . import *  # get all test assets from test/__init__.py
 
 
 @pytest.mark.unit
-def test_something():
-    assert(True)
+def test_healthcheck(MockConsumer):
+    port = 9098
+    MockConsumer.serve_healthcheck(port)
+    url = 'http://localhost:%s' % port
+    r = requests.head(url)
+    assert(r.status_code == 200)
+    MockConsumer.healthcheck.stop()
+    try:
+        r = requests.head(url)
+        assert(r.status_code == 500)
+    except requests.exceptions.ConnectionError:
+        pass
+    else:
+        assert(False), 'Healthcheck should be down'

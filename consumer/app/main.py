@@ -18,11 +18,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from aet.consumer import KafkaConsumer
-import requests
+# from aet.consumer import KafkaConsumer
+# import requests
 
-from app import settings
-from app.healthcheck import HealthcheckServer
+from . import settings
+from .healthcheck import HealthcheckServer
 
 EXCLUDED_TOPICS = ['__confluent.support.metrics']
 
@@ -30,7 +30,6 @@ EXCLUDED_TOPICS = ['__confluent.support.metrics']
 class RESTConsumer(object):
 
     def __init__(self):
-        pass
         self.serve_healthcheck(CSET['EXPOSE_PORT'])
 
     def serve_healthcheck(self, port):
@@ -38,8 +37,12 @@ class RESTConsumer(object):
         self.healthcheck.start()
 
 
-if __name__ == "__main__":
+def run():
     global KSET, CSET
     CSET = settings.get_CONSUMER_CONFIG()
     KSET = settings.get_KAFKA_CONFIG()
+    consumer = RESTConsumer()  # noqa
 
+
+if __name__ == "__main__":
+    run()

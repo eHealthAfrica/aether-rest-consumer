@@ -21,4 +21,4 @@
 set -Eeuo pipefail
 
 
-docker-compose run example-consumer test_unit
+docker-compose run rest-consumer test_unit

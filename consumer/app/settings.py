@@ -36,8 +36,6 @@ class Settings(dict):
         self.load(file_path)
 
     def get(self, key, default=None):
-        if self.exclude is not None and key in self.exclude:
-            return default
         try:
             return self.__getitem__(key)
         except KeyError:
@@ -84,7 +82,7 @@ def load_config():
         exclude=['kafka_url']
     )
     kafka_required = [
-        'KAFKA_URL'
+        'kafka_url'
     ]
     for i in kafka_required:
         if not KAFKA_CONFIG.get(i):

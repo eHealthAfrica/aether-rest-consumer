@@ -20,6 +20,10 @@
 
 # from aet.consumer import KafkaConsumer
 # import requests
+
+from datetime import datetime
+import json
+from jsonschema import validate
 import redis
 
 
@@ -31,24 +35,26 @@ EXCLUDED_TOPICS = ['__confluent.support.metrics']
 
 class RESTConsumer(object):
 
-    def __init__(self):
+    def __init__(self, CSET, KSET):
         self.serve_healthcheck(CSET['EXPOSE_PORT'])
         self.redis = redis.Redis(
             host=CSET['REDIS_HOST'],
             port=CSET['REDIS_PORT'],
             db=CSET['REDIS_DB']
         )
+        self.schema = self.load_schema()
 
     def serve_healthcheck(self, port):
         self.healthcheck = HealthcheckServer(port)
         self.healthcheck.start()
 
     def validate_job(self, job):
-        res = dict(job)
-        job[] = datetime.now().isoformat()
+        validate(job, self.schema)  # Throws ValidationErrors
 
     def _add_job(self, job):
+        self.validate_job(job)
         key = job['id']
+        job['modified'] = datetime.now().isoformat()
         self.redis.set(key, job)
 
     def _job_exists(self, _id):
@@ -58,7 +64,6 @@ class RESTConsumer(object):
 
     def _remove_job(self, _id):
         return self.redis.delete(_id)
-        
 
     def _get_job(self, _id):
         return self.redis.get(_id)
@@ -66,15 +71,18 @@ class RESTConsumer(object):
     def _list_jobs(self):
         # jobs as a generator
         key_identifier = '_job:*'
-        for i in  self.redis.scan_iter(key_identifier):
+        for i in self.redis.scan_iter(key_identifier):
             yield i
+
+    def load_schema(self):
+        with open('./app/job_schema.json') as f:
+            return json.load(f)
 
 
 def run():
-    global KSET, CSET
     CSET = settings.get_CONSUMER_CONFIG()
     KSET = settings.get_KAFKA_CONFIG()
-    consumer = RESTConsumer()  # noqa
+    consumer = RESTConsumer(CSET, KSET)  # noqa
 
 
 if __name__ == "__main__":

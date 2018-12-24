@@ -29,6 +29,8 @@ from . import *  # get all test assets from test/__init__.py
 # `pytest -m unit`
 # to run integration tests / all tests run the test_all.sh script from the /tests directory.
 
+from jsonschema.exceptions import ValidationError
+
 
 @pytest.mark.unit
 def test_healthcheck(MockConsumer):
@@ -45,3 +47,24 @@ def test_healthcheck(MockConsumer):
         pass
     else:
         assert(False), 'Healthcheck should be down'
+
+
+@pytest.mark.unit
+def test_init(Consumer):
+    pass  # noqa
+
+
+@pytest.mark.unit
+def test_validate_fail(Consumer, fake_job):
+    del fake_job['id']
+    try:
+        Consumer.validate_job(fake_job)
+    except ValidationError:
+        pass
+    else:
+        raise ValueError('Bad message not caught.')
+
+
+@pytest.mark.unit
+def test_validate_ok(Consumer, fake_job):
+    Consumer.validate_job(fake_job)

@@ -20,7 +20,10 @@
 
 import pytest
 import requests  # noqa
+from uuid import uuid4
+
 from app.main import RESTConsumer
+from app import settings
 
 kafka_server = "kafka-test:29099"
 
@@ -43,4 +46,44 @@ class _MockConsumer(RESTConsumer):
 @pytest.fixture(scope="function")
 def MockConsumer():
     consumer = _MockConsumer()
+    consumer.schema = consumer.load_schema()
     return consumer
+
+
+@pytest.mark.integration
+@pytest.mark.unit
+@pytest.fixture(scope="module")
+def Consumer():
+    CSET = settings.get_CONSUMER_CONFIG()
+    KSET = settings.get_KAFKA_CONFIG()
+    consumer = RESTConsumer(CSET, KSET)  # noqa
+    yield consumer
+    consumer.healthcheck.stop()
+
+
+@pytest.mark.integration
+@pytest.mark.unit
+@pytest.fixture(scope="function")
+def fake_job():
+    return {
+        'id': str(uuid4()),
+        'owner': 'the owner',
+        'type': 'POST',
+        'topic': [
+            'a',
+            'b'
+        ],
+        'datamap': {
+            'key1': 'val1',
+            'key2': 'val2'
+        },
+        'url': 'http://someurl',
+        'query_params': [
+            'key1',
+            'key2'
+        ],
+        'json_body': [
+            'key1',
+            'key2'
+        ]
+    }

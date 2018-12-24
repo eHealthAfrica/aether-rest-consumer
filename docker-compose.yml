@@ -5,8 +5,17 @@ services:
     extends:
       file: docker-compose-base.yml
       service: rest-consumer-base
+    environment:
+      REDIS_HOST: redis-test
     ports:
       - "${EXPOSE_PORT}:${EXPOSE_PORT}"
+    networks:
+      - aether
+  
+  redis:
+    extends:
+      file: docker-compose-base.yml
+      service: redis-base
     networks:
       - aether
 

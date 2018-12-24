@@ -1,4 +1,5 @@
 version: "2.1"
+
 services:
   rest-consumer-base:
     image: ehealthafrica/aether-rest-consumer
@@ -10,7 +11,12 @@ services:
      - KAFKA_CONFIG_PATH=/code/conf/consumer/kafka.json
      - CONSUMER_CONFIG_PATH=/code/conf/consumer/consumer.json
      - EXPOSE_PORT=${EXPOSE_PORT}
+     - REDIS_PORT=6379
+     - REDIS_DB=0
 
     volumes:
      - ./consumer/conf:/code/conf
     command: start
+
+  redis-base:
+    image: redis:3-alpine

@@ -10,6 +10,7 @@
 
 aet.consumer
 flake8
+jsonschema
 mock
 pytest
 pytest-runner

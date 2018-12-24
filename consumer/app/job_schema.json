@@ -1,0 +1,136 @@
+{
+  "definitions": {},
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://example.com/root.json",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "id",
+    "owner",
+    "type",
+    "topic",
+    "datamap",
+    "url"  
+  ],
+  "properties": {
+    "id": {
+      "$id": "#/properties/id",
+      "type": "string",
+      "title": "The Id Schema",
+      "default": "",
+      "examples": [
+        "an_id"
+      ],
+      "pattern": "^(.*)$"
+    },
+    "owner": {
+      "$id": "#/properties/owner",
+      "type": "string",
+      "title": "The Owner Schema",
+      "default": "",
+      "examples": [
+        "the owner"
+      ],
+      "pattern": "^(.*)$"
+    },
+    "type": {
+      "$id": "#/properties/type",
+      "type": "string",
+      "title": "The Type Schema",
+      "default": "",
+      "examples": [
+        "POST"
+      ],
+      "pattern": "^(.*)$"
+    },
+    "topic": {
+      "$id": "#/properties/topic",
+      "type": "array",
+      "title": "The Topic Schema",
+      "items": {
+        "$id": "#/properties/topic/items",
+        "type": "string",
+        "title": "The Items Schema",
+        "default": "",
+        "examples": [
+          "a",
+          "b"
+        ],
+        "pattern": "^(.*)$"
+      }
+    },
+    "datamap": {
+      "$id": "#/properties/datamap",
+      "type": "object",
+      "title": "The Datamap Schema",
+      "required": [
+        "key1",
+        "key2"
+      ],
+      "properties": {
+        "key1": {
+          "$id": "#/properties/datamap/properties/key1",
+          "type": "string",
+          "title": "The Key1 Schema",
+          "default": "",
+          "examples": [
+            "val1"
+          ],
+          "pattern": "^(.*)$"
+        },
+        "key2": {
+          "$id": "#/properties/datamap/properties/key2",
+          "type": "string",
+          "title": "The Key2 Schema",
+          "default": "",
+          "examples": [
+            "val2"
+          ],
+          "pattern": "^(.*)$"
+        }
+      }
+    },
+    "url": {
+      "$id": "#/properties/url",
+      "type": "string",
+      "title": "The Url Schema",
+      "default": "",
+      "examples": [
+        "http://someurl"
+      ],
+      "pattern": "^(.*)$"
+    },
+    "query_params": {
+      "$id": "#/properties/query_params",
+      "type": "array",
+      "title": "The Query_params Schema",
+      "items": {
+        "$id": "#/properties/query_params/items",
+        "type": "string",
+        "title": "The Items Schema",
+        "default": "",
+        "examples": [
+          "key1",
+          "key2"
+        ],
+        "pattern": "^(.*)$"
+      }
+    },
+    "json_body": {
+      "$id": "#/properties/json_body",
+      "type": "array",
+      "title": "The Json_body Schema",
+      "items": {
+        "$id": "#/properties/json_body/items",
+        "type": "string",
+        "title": "The Items Schema",
+        "default": "",
+        "examples": [
+          "key1",
+          "key2"
+        ],
+        "pattern": "^(.*)$"
+      }
+    }
+  }
+}

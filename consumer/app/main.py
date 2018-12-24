@@ -20,6 +20,8 @@
 
 # from aet.consumer import KafkaConsumer
 # import requests
+import redis
+
 
 from . import settings
 from .healthcheck import HealthcheckServer
@@ -31,10 +33,41 @@ class RESTConsumer(object):
 
     def __init__(self):
         self.serve_healthcheck(CSET['EXPOSE_PORT'])
+        self.redis = redis.Redis(
+            host=CSET['REDIS_HOST'],
+            port=CSET['REDIS_PORT'],
+            db=CSET['REDIS_DB']
+        )
 
     def serve_healthcheck(self, port):
         self.healthcheck = HealthcheckServer(port)
         self.healthcheck.start()
+
+    def validate_job(self, job):
+        res = dict(job)
+        job[] = datetime.now().isoformat()
+
+    def _add_job(self, job):
+        key = job['id']
+        self.redis.set(key, job)
+
+    def _job_exists(self, _id):
+        if self.redis.exists(_id):
+            return True
+        return False
+
+    def _remove_job(self, _id):
+        return self.redis.delete(_id)
+        
+
+    def _get_job(self, _id):
+        return self.redis.get(_id)
+
+    def _list_jobs(self):
+        # jobs as a generator
+        key_identifier = '_job:*'
+        for i in  self.redis.scan_iter(key_identifier):
+            yield i
 
 
 def run():

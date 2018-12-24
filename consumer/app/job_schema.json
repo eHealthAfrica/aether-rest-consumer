@@ -1,9 +1,9 @@
 {
   "definitions": {},
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "http://example.com/root.json",
+  "$id": "http://aether.eha.org/job.json",
   "type": "object",
-  "title": "The Root Schema",
+  "title": "REST Consumer Job",
   "required": [
     "id",
     "owner",
@@ -16,7 +16,7 @@
     "id": {
       "$id": "#/properties/id",
       "type": "string",
-      "title": "The Id Schema",
+      "title": "The ID of this Job",
       "default": "",
       "examples": [
         "an_id"
@@ -26,7 +26,7 @@
     "owner": {
       "$id": "#/properties/owner",
       "type": "string",
-      "title": "The Owner Schema",
+      "title": "Who Owns this Job",
       "default": "",
       "examples": [
         "the owner"
@@ -36,7 +36,7 @@
     "type": {
       "$id": "#/properties/type",
       "type": "string",
-      "title": "The Type Schema",
+      "title": "The REST Type of this job",
       "default": "",
       "examples": [
         "POST"
@@ -46,11 +46,11 @@
     "topic": {
       "$id": "#/properties/topic",
       "type": "array",
-      "title": "The Topic Schema",
+      "title": "Kafka Topics to Monitor",
       "items": {
         "$id": "#/properties/topic/items",
         "type": "string",
-        "title": "The Items Schema",
+        "title": "Individual topics",
         "default": "",
         "examples": [
           "a",
@@ -62,48 +62,31 @@
     "datamap": {
       "$id": "#/properties/datamap",
       "type": "object",
-      "title": "The Datamap Schema",
-      "required": [
-        "key1",
-        "key2"
-      ],
-      "properties": {
-        "key1": {
-          "$id": "#/properties/datamap/properties/key1",
-          "type": "string",
-          "title": "The Key1 Schema",
-          "default": "",
-          "examples": [
-            "val1"
-          ],
-          "pattern": "^(.*)$"
-        },
-        "key2": {
-          "$id": "#/properties/datamap/properties/key2",
-          "type": "string",
-          "title": "The Key2 Schema",
-          "default": "",
-          "examples": [
-            "val2"
-          ],
-          "pattern": "^(.*)$"
+      "title": "The Datamap to pull from messages",
+      "patternProperties": {
+        "^.*$": {
+          "anyOf": [
+            {"type": "string"},
+            {"type": "null"}
+          ]
         }
-      }
+      },
+      "additionalProperties": false
     },
     "url": {
       "$id": "#/properties/url",
       "type": "string",
-      "title": "The Url Schema",
+      "title": "The URL to use for this job, with optional query parameters",
       "default": "",
       "examples": [
-        "http://someurl"
+        "http://someurl.com/api/v1/{id}/"
       ],
       "pattern": "^(.*)$"
     },
     "query_params": {
       "$id": "#/properties/query_params",
       "type": "array",
-      "title": "The Query_params Schema",
+      "title": "Query Parameters for a GET string",
       "items": {
         "$id": "#/properties/query_params/items",
         "type": "string",

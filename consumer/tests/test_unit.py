@@ -84,7 +84,7 @@ def test_task_crud(Consumer, fake_job):
 
 
 @pytest.mark.unit
-def test_crud(Consumer, fake_job):
+def test_job_handling(Consumer, fake_job):
     _id = fake_job['id']
     assert(Consumer.add_job(fake_job) is True)
     sleep(1)  # Let the pubsub do it's job so we don't get log spam

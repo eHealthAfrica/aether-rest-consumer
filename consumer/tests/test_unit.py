@@ -95,3 +95,9 @@ def test_job_handling(Consumer, fake_job):
     assert(_id in jobs)
     assert(_id in Consumer.children.keys())
     assert(Consumer.remove_job(_id) is True)
+
+
+@pytest.mark.unit
+def test_worker_process_datamap(Worker):
+    res = Worker.process_data_map(data_map, data)
+    assert(res == mapping_result)

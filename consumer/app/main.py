@@ -29,6 +29,7 @@ import redis
 
 from . import settings
 from .healthcheck import HealthcheckServer
+from .jsonpath import CachedParser
 from .logger import LOG
 
 EXCLUDED_TOPICS = ['__confluent.support.metrics']
@@ -169,11 +170,39 @@ class RESTWorker(object):
 
     def __init__(self, _id, config):
         self.id = _id
+        self.worker = None
         self.update_config(config)
 
     def update_config(self, config):
         LOG.debug(f'Worker {self.id} has a new configuration.')
+        if self.worker:
+            pass  # stop worker and wait for it to pause
         self.config = config
+        # parse config / setup pipeline
+        # start worker with pipeline
+
+    def parse_config(self, config):
+        # Process to understand config and create pipeline
+        pass
+
+    def process_data_map(self, data_spec, data):
+        # - DataMap: { key : jsonpath_expr, ... }
+        # - like "schema_name" : "$.schema.name" or "id" : "$.msg.id"
+        data_map = {}
+        for key, path in data_spec.items():
+            matches = CachedParser.find(path, data)
+            if not matches:
+                continue
+            if len(matches) > 1:
+                data_map[key] = [m.value for m in matches]
+            else:
+                data_map[key] = matches[0].value
+        return data_map
+
+    def make_json_body(self, datamap, keys):
+        # - json_body (post only) : [ keys from datamap ]
+        #    - becomes { key1 : val1, key2: val2 }
+        pass
 
     def stop(self):
         LOG.debug(f'Worker {self.id} is stopping')

@@ -23,7 +23,7 @@ import pytest
 import requests  # noqa
 from uuid import uuid4
 
-from app.main import RESTConsumer
+from app.main import RESTConsumer, RESTWorker
 from app import settings
 
 kafka_server = "kafka-test:29099"
@@ -65,6 +65,15 @@ def Consumer():
 @pytest.mark.integration
 @pytest.mark.unit
 @pytest.fixture(scope="function")
+def Worker():
+    worker = RESTWorker('_id', {})  # noqa
+    yield worker
+    worker.stop()
+
+
+@pytest.mark.integration
+@pytest.mark.unit
+@pytest.fixture(scope="function")
 def fake_job():
     return {
         'id': str(uuid4()),
@@ -88,3 +97,34 @@ def fake_job():
             'key2'
         ]
     }
+
+
+data = {
+    '_id': 'an_id',
+    'a_list': [1, 2, 3, 4],
+    'b_list': {
+        'a': 1,
+        'b': 'two',
+        'c': '3po'
+    },
+    'c_item': 1.2,
+    'd_item': False
+}
+
+data_map = {
+    '_id': '$.id',
+    'whole_list': '$.a_list',
+    'list_item': '$.a.list[0]',
+    'b_dot_a': '$.b_list.a',
+    'whole_dict': '$.b_list',
+    'number': '$.c_item',
+    'boolean': '$.d_item'
+}
+
+mapping_result = {
+    'whole_list': [1, 2, 3, 4],
+    'b_dot_a': 1,
+    'whole_dict': {'a': 1, 'b': 'two', 'c': '3po'},
+    'number': 1.2,
+    'boolean': False
+}

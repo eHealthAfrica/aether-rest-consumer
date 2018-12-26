@@ -18,6 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json  # noqa
 import pytest
 import requests  # noqa
 from uuid import uuid4

@@ -68,3 +68,26 @@ def test_validate_fail(Consumer, fake_job):
 @pytest.mark.unit
 def test_validate_ok(Consumer, fake_job):
     Consumer.validate_job(fake_job)
+
+
+@pytest.mark.unit
+def test_task_crud(Consumer, fake_job):
+    _id = fake_job['id']
+    _type = 'fakejob'
+    assert(Consumer._add_task(fake_job, type=_type) is True)
+    job = json.loads(Consumer._get_task(_id, type=_type))
+    assert(job['modified'] is not None)
+    jobs = list(Consumer._list_tasks(type=_type))
+    assert(_id in jobs)
+    assert(Consumer._remove_task(_id, type=_type) is True)
+
+
+@pytest.mark.unit
+def test_crud(Consumer, fake_job):
+    _id = fake_job['id']
+    assert(Consumer._add_job(fake_job) is True)
+    job = Consumer._get_job(_id)
+    assert(job['modified'] is not None)
+    jobs = list(Consumer._list_jobs())
+    assert(_id in jobs)
+    assert(Consumer._remove_job(_id) is True)

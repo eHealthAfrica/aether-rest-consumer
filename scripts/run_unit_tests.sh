@@ -20,5 +20,8 @@
 #
 set -Eeuo pipefail
 
+DCP_TEST=./docker-compose-test.yml
 
-docker-compose run rest-consumer test_unit
+docker-compose -f $DCP_TEST build
+docker-compose -f $DCP_TEST run rest-consumer-test test_unit
+docker-compose -f $DCP_TEST down

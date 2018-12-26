@@ -40,7 +40,9 @@ class RESTConsumer(object):
         self.redis = redis.Redis(
             host=CSET['REDIS_HOST'],
             port=CSET['REDIS_PORT'],
-            db=CSET['REDIS_DB']
+            db=CSET['REDIS_DB'],
+            encoding="utf-8",
+            decode_responses=True
         )
         self.schema = self.load_schema()
 
@@ -48,35 +50,59 @@ class RESTConsumer(object):
         self.healthcheck = HealthcheckServer(port)
         self.healthcheck.start()
 
+    def _add_task(self, task, type):
+        key = f'''_{type}:{task['id']}'''
+        task['modified'] = datetime.now().isoformat()
+        return self.redis.set(key, json.dumps(task))
+
+    def _task_exists(self, _id, type):
+        task_id = f'_{type}:{_id}'
+        if self.redis.exists(task_id):
+            return True
+        return False
+
+    def _remove_task(self, _id, type):
+        task_id = f'_{type}:{_id}'
+        res = self.redis.delete(task_id)
+        if not res:
+            return False
+        return True
+
+    def _get_task(self, _id, type):
+        task_id = f'_{type}:{_id}'
+        task = self.redis.get(task_id)
+        if not task:
+            raise ValueError(f'No job with id {_id}')
+        return task
+
+    def _list_tasks(self, type):
+        # jobs as a generator
+        key_identifier = f'_{type}:*'
+        for i in self.redis.scan_iter(key_identifier):
+            yield str(i).split(key_identifier[:-1])[1]
+
+    def load_schema(self):
+        with open('./app/job_schema.json') as f:
+            return json.load(f)
+
     def validate_job(self, job):
         validate(job, self.schema)  # Throws ValidationErrors
 
     def _add_job(self, job):
         self.validate_job(job)
-        key = job['id']
-        job['modified'] = datetime.now().isoformat()
-        self.redis.set(key, job)
+        return self._add_task(job, type='job')
 
     def _job_exists(self, _id):
-        if self.redis.exists(_id):
-            return True
-        return False
+        return self._task_exists(_id, type='job')
 
     def _remove_job(self, _id):
-        return self.redis.delete(_id)
+        return self._remove_task(_id, type='job')
 
     def _get_job(self, _id):
-        return self.redis.get(_id)
+        return json.loads(self._get_task(_id, type='job'))
 
     def _list_jobs(self):
-        # jobs as a generator
-        key_identifier = '_job:*'
-        for i in self.redis.scan_iter(key_identifier):
-            yield i
-
-    def load_schema(self):
-        with open('./app/job_schema.json') as f:
-            return json.load(f)
+        return self._list_tasks(type='job')
 
 
 def run():

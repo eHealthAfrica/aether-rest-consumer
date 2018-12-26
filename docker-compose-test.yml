@@ -4,7 +4,7 @@ services:
   rest-consumer-test:
     extends:
       file: docker-compose-base.yml
-      service: example-consumer-base
+      service: rest-consumer-base
     environment:
       REDIS_HOST: redis-test
     ports:
@@ -13,6 +13,9 @@ services:
       - test_net
     links:
       - redis-test
+    depends_on:
+      redis-test:
+        condition: service_started
 
   redis-test:
     extends:

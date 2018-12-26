@@ -29,6 +29,7 @@ from . import *  # get all test assets from test/__init__.py
 # `pytest -m unit`
 # to run integration tests / all tests run the test_all.sh script from the /tests directory.
 
+from time import sleep
 from jsonschema.exceptions import ValidationError
 
 
@@ -85,9 +86,12 @@ def test_task_crud(Consumer, fake_job):
 @pytest.mark.unit
 def test_crud(Consumer, fake_job):
     _id = fake_job['id']
-    assert(Consumer._add_job(fake_job) is True)
-    job = Consumer._get_job(_id)
+    assert(Consumer.add_job(fake_job) is True)
+    sleep(1)  # Let the pubsub do it's job so we don't get log spam
+    job = Consumer.get_job(_id)
     assert(job['modified'] is not None)
-    jobs = list(Consumer._list_jobs())
+    assert(_id in [c[0] for c in Consumer.recent_changes])
+    jobs = list(Consumer.list_jobs())
     assert(_id in jobs)
-    assert(Consumer._remove_job(_id) is True)
+    assert(_id in Consumer.children.keys())
+    assert(Consumer.remove_job(_id) is True)

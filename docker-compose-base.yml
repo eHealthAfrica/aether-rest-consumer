@@ -20,3 +20,4 @@ services:
 
   redis-base:
     image: redis:3-alpine
+    command: ["--notify-keyspace-events", "KA"]

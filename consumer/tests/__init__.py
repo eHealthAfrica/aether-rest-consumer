@@ -59,7 +59,7 @@ def Consumer():
     KSET = settings.get_KAFKA_CONFIG()
     consumer = RESTConsumer(CSET, KSET)  # noqa
     yield consumer
-    consumer.healthcheck.stop()
+    consumer.stop()
 
 
 @pytest.mark.integration

@@ -20,17 +20,11 @@
 
 
 import http.server
-import logging
 from socketserver import TCPServer
 import threading
 import sys
 
-LOG = logging.getLogger(__name__)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter(
-    '%(asctime)s [Consumer] %(levelname)-8s %(message)s'))
-LOG.addHandler(handler)
-LOG.setLevel(logging.DEBUG)
+from .logger import LOG
 
 
 class HealthcheckHandler(http.server.BaseHTTPRequestHandler):

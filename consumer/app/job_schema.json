@@ -10,7 +10,7 @@
     "type",
     "topic",
     "datamap",
-    "url"  
+    "url"
   ],
   "properties": {
     "id": {
@@ -37,11 +37,7 @@
       "$id": "#/properties/type",
       "type": "string",
       "title": "The REST Type of this job",
-      "default": "",
-      "examples": [
-        "POST"
-      ],
-      "pattern": "^(.*)$"
+      "enum": [ "HEAD", "GET", "POST", "PUT", "DELETE", "OPTIONS"]
     },
     "topic": {
       "$id": "#/properties/topic",
@@ -53,8 +49,8 @@
         "title": "Individual topics",
         "default": "",
         "examples": [
-          "a",
-          "b"
+          "topic1",
+          "topic2"
         ],
         "pattern": "^(.*)$"
       }
@@ -66,8 +62,12 @@
       "patternProperties": {
         "^.*$": {
           "anyOf": [
-            {"type": "string"},
-            {"type": "null"}
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -79,7 +79,7 @@
       "title": "The URL to use for this job, with optional query parameters",
       "default": "",
       "examples": [
-        "http://someurl.com/api/v1/{id}/"
+        "http://example.com/api/v1/{id}/"
       ],
       "pattern": "^(.*)$"
     },
@@ -114,6 +114,47 @@
         ],
         "pattern": "^(.*)$"
       }
+    },
+    "basic_auth": {
+      "$id": "#/properties/basic_auth",
+      "type": "object",
+      "title": "The Basic_auth Schema",
+      "required": [
+        "user",
+        "password"
+      ],
+      "properties": {
+        "user": {
+          "$id": "#/properties/basic_auth/properties/user",
+          "type": "string",
+          "title": "The User Schema",
+          "default": "",
+          "examples": [
+            "uname"
+          ],
+          "pattern": "^(.*)$"
+        },
+        "password": {
+          "$id": "#/properties/basic_auth/properties/password",
+          "type": "string",
+          "title": "The Password Schema",
+          "default": "",
+          "examples": [
+            "apassword"
+          ],
+          "pattern": "^(.*)$"
+        }
+      }
+    },
+    "token": {
+      "$id": "#/properties/token",
+      "type": "string",
+      "title": "The Token Schema",
+      "default": "",
+      "examples": [
+        "mylongtoken"
+      ],
+      "pattern": "^(.*)$"
     }
   }
 }

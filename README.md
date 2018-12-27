@@ -23,6 +23,8 @@ An Aether consumer that publishes to REST endpoints
      - w/ key replacement from datamap like 'http://example.com/{id}'
  
 #### Optional:
+ - basic_auth: {user: user, pw: pw}
+ - token: token for auth
  - query_params : [ keys from datamap ] 
      - becomes ?key1=value1&key2=value2...
  - json_body (post only) : [ keys from datamap ]

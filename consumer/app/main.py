@@ -19,13 +19,12 @@
 # under the License.
 
 # from aet.consumer import KafkaConsumer
-# import requests
 
 from datetime import datetime
 import json
 from jsonschema import validate
 import redis
-
+import requests
 
 from . import settings
 from .healthcheck import HealthcheckServer
@@ -51,6 +50,7 @@ class RESTConsumer(object):
         self.children = {}
         self.schema = self.load_schema()
         self.subscribe_to_jobs()
+        self.load_existing_jobs()
 
     def serve_healthcheck(self, port):
         self.healthcheck = HealthcheckServer(port)
@@ -64,7 +64,7 @@ class RESTConsumer(object):
             f'{key_space}': self.handle_job_change
         }
         )
-        self.thread = self.pubsub.run_in_thread(sleep_time=0.1)
+        self.subscriber = self.pubsub.run_in_thread(sleep_time=0.1)
 
     def handle_job_change(self, msg):
         _id = msg['channel'].split('job:')[1]
@@ -74,26 +74,31 @@ class RESTConsumer(object):
                    ]))
         self.recent_changes = self.recent_changes[-10::]
         if op == 'del':
-            return self.remove_child(_id)
+            return self.stop_child(_id)
         elif op == 'set':
-            return self.update_child(_id)
+            return self.upstart_child(_id)
         else:
             raise ValueError('''Unexpected operation {op} on channel {msg['channel']}''')
 
-    def update_child(self, _id):
+    def load_existing_jobs(self):
+        # Get existing jobs from Redis and start up.
+        for _id in self.list_jobs():
+            self.upstart_child(_id)
+
+    def upstart_child(self, _id):
         LOG.debug(f'handling update for job:{_id}')
         if _id in self.children.keys():
             LOG.debug(f'Child {id} exists, updating')
         else:
-            LOG.debug(f'Creating child {_id}')
+            LOG.debug(f'Starting child {_id}')
             try:
                 config = self.get_job(_id)
             except ValueError:
-                LOG.error(f'Could not create job {_id}, no matching config found in Redis')
+                LOG.error(f'Could not start job {_id}, no matching config found in Redis')
                 return
             self.children[_id] = RESTWorker(_id, config)
 
-    def remove_child(self, _id):
+    def stop_child(self, _id):
         LOG.debug(f'handling removal for job:{_id}')
         try:
             self.children[_id].stop()
@@ -103,7 +108,10 @@ class RESTConsumer(object):
 
     def stop(self):
         LOG.info('Shutting down')
-        self.thread.stop()
+        try:
+            self.subscriber.stop()
+        except AttributeError:
+            pass
         self.healthcheck.stop()
         LOG.info('Shutdown Complete')
 
@@ -168,29 +176,49 @@ class RESTConsumer(object):
 
 class RESTWorker(object):
 
+    REST_CALLS = {
+                "HEAD": requests.head,
+                "GET": requests.get,
+                "POST": requests.post,
+                "PUT": requests.put,
+                "DELETE": requests,delete,
+                "OPTIONS": requests.options
+            }
+
     def __init__(self, _id, config):
-        self.id = _id
+        self._id = _id
         self.worker = None
+        self.topics = []
+        self.consumer = None
+        self.url = None
         self.update_config(config)
 
     def update_config(self, config):
-        LOG.debug(f'Worker {self.id} has a new configuration.')
+        LOG.debug(f'Worker {self._id} has a new configuration.')
         if self.worker:
             pass  # stop worker and wait for it to pause
-        self.config = config
+        self.parse_config(config)
         # parse config / setup pipeline
         # start worker with pipeline
 
     def parse_config(self, config):
         # Process to understand config and create pipeline
-        pass
+        self.config = config
+        return
 
-    def process_data_map(self, data_spec, data):
-        # - DataMap: { key : jsonpath_expr, ... }
-        # - like "schema_name" : "$.schema.name" or "id" : "$.msg.id"
+    def handle_message(self, schema, msg):
+        whole_message = {'schema': schema, 'msg': msg}
+        mapped_data = self.process_data_map(self.data_map, whole_message)
+        return self.make_request(
+            mapped_data,
+            self.config
+        )
+
+    def process_data_map(self, data_spec, msg):
+        # Pulls out elements from data (msg + schema) according to data_spec
         data_map = {}
         for key, path in data_spec.items():
-            matches = CachedParser.find(path, data)
+            matches = CachedParser.find(path, msg)
             if not matches:
                 continue
             if len(matches) > 1:
@@ -199,13 +227,34 @@ class RESTWorker(object):
                 data_map[key] = matches[0].value
         return data_map
 
-    def make_json_body(self, datamap, keys):
-        # - json_body (post only) : [ keys from datamap ]
-        #    - becomes { key1 : val1, key2: val2 }
-        pass
+    def data_from_datamap(self, datamap, keys):
+        # Grab requirements in keys from datamap
+        data = {k: datamap.get(k) for k in keys if k in datamap}
+        return data
+
+    def make_request(self, mapped_data, config):
+        request_type = config['request_type']
+        url = config['url']
+        full_url = url.format(mapped_data)
+        fn = self.get_request_function_for_type(request_type)
+        params = config.get('query_params')
+        if params:
+            params = self.data_from_datamap(mapped_data, params)
+        json_body = config.get('json_body')
+        if json_body:
+            json_body = self.data_from_datamap(mapped_data, json_body)
+        return fn(
+            full_url,
+            params=params,
+            json=json_body
+        )
+
+
+    def get_request_function_for_type(self, request_type):
+        return RESTWorker.REST_CALLS[request_type]
 
     def stop(self):
-        LOG.debug(f'Worker {self.id} is stopping')
+        LOG.debug(f'Worker {self._id} is stopping')
 
 
 def run():

@@ -29,6 +29,7 @@ from . import *  # get all test assets from test/__init__.py
 # `pytest -m unit`
 # to run integration tests / all tests run the test_all.sh script from the /tests directory.
 
+import responses
 from time import sleep
 from jsonschema.exceptions import ValidationError
 
@@ -85,6 +86,7 @@ def test_task_crud(Consumer, fake_job):
 
 @pytest.mark.unit
 def test_job_handling(Consumer, fake_job):
+    # Add a job and make sure the subscribtion handler picks it up
     _id = fake_job['id']
     assert(Consumer.add_job(fake_job) is True)
     sleep(1)  # Let the pubsub do it's job so we don't get log spam

@@ -25,6 +25,8 @@ import json
 from jsonschema import validate
 import redis
 import requests
+import threading
+from time import sleep
 
 from . import settings
 from .healthcheck import HealthcheckServer
@@ -88,7 +90,10 @@ class RESTConsumer(object):
     def upstart_child(self, _id):
         LOG.debug(f'handling update for job:{_id}')
         if _id in self.children.keys():
-            LOG.debug(f'Child {id} exists, updating')
+            LOG.debug(f'Child {_id} exists, updating')
+            config = self.get_job(_id)
+            fn = self.children[_id].update_config
+            threading.Thread(target=fn, args=(config,)).start()
         else:
             LOG.debug(f'Starting child {_id}')
             try:
@@ -174,6 +179,11 @@ class RESTConsumer(object):
         return self._list_tasks(type='job')
 
 
+class WorkerException(exception):
+    # A class to handle anticipated fatal exceptions
+    pass
+
+
 class RESTWorker(object):
 
     REST_CALLS = {
@@ -186,24 +196,51 @@ class RESTWorker(object):
     }
 
     def __init__(self, _id, config):
+        self.running = False
         self._id = _id
         self.worker = None
         self.topics = []
         self.consumer = None
         self.url = None
-        self.update_config(config)
+        try:
+            self.update_config(config)
+        except WorkerException as we:
+            LOG.error(f'Could not initalize worker {self._id}: {we}')
 
     def update_config(self, config):
         LOG.debug(f'Worker {self._id} has a new configuration.')
-        if self.worker:
-            pass  # stop worker and wait for it to pause
+        if self.worker and self.worker.is_alive():
+            LOG.debug(f'{self._id} pausing worker for update.')
+            self.running = False
+            self.worker.join()
+            LOG.debug(f'{self._id} worker stopped.')
         self.parse_config(config)
         # parse config / setup pipeline
         # start worker with pipeline
 
+    def start_worker(self):
+        self.worker = threading.Thread(target=self.work)
+        self.running = True
+        self.worker.start()
+
+    def work(self):
+        while self.running:
+            # poll for new messages
+            # get new messages
+            # handle each message
+            sleep(.25)
+        LOG.info(f'Worker on {self._id} is finished.')
+
     def parse_config(self, config):
         # Process to understand config and create pipeline
+        try:
+            self.url = config['url']
+            self.topics = config['topic']
+        except KeyError:
+            LOG.error(f'Job {self._id} has a bad configuration. Job will not run.')
+            raise WorkerException('Bad configuration.')
         self.config = config
+
         return
 
     def handle_message(self, schema, msg):

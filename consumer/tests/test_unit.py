@@ -103,3 +103,20 @@ def test_job_handling(Consumer, fake_job):
 def test_worker_process_datamap(Worker):
     res = Worker.process_data_map(data_map, data)
     assert(res == mapping_result)
+
+
+@responses.activate
+@pytest.mark.unit
+def test_make_get_request(Worker, fake_job):
+    job = dict(fake_job)
+    job['type'] = 'GET'
+    full_url = job['url'].format(id=fake_job_msg['id'])
+    msg = {'msg': fake_job_msg}
+    responses.add(responses.GET, full_url,
+                  status=201,
+                  match_querystring=False)
+    mapped_data = Worker.process_data_map(job['datamap'], msg)
+    res = Worker.make_request(mapped_data, job)
+    for param in job['query_params']:
+        assert(param in res.url)
+    assert (res.status_code == 201)

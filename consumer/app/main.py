@@ -177,13 +177,13 @@ class RESTConsumer(object):
 class RESTWorker(object):
 
     REST_CALLS = {
-                "HEAD": requests.head,
-                "GET": requests.get,
-                "POST": requests.post,
-                "PUT": requests.put,
-                "DELETE": requests,delete,
-                "OPTIONS": requests.options
-            }
+        "HEAD": requests.head,
+        "GET": requests.get,
+        "POST": requests.post,
+        "PUT": requests.put,
+        "DELETE": requests.delete,
+        "OPTIONS": requests.options
+    }
 
     def __init__(self, _id, config):
         self._id = _id
@@ -233,9 +233,14 @@ class RESTWorker(object):
         return data
 
     def make_request(self, mapped_data, config):
-        request_type = config['request_type']
+        request_type = config['type']
         url = config['url']
-        full_url = url.format(mapped_data)
+        try:
+            full_url = url.format(**mapped_data)
+        except KeyError as ker:
+            LOG.error(f'Error sending message in job {self._id}: {ker}' +
+                      f'{url} -> {mapped_data}')
+            raise requests.URLRequired(f'bad argument in URL: {ker}')
         fn = self.get_request_function_for_type(request_type)
         params = config.get('query_params')
         if params:
@@ -248,7 +253,6 @@ class RESTWorker(object):
             params=params,
             json=json_body
         )
-
 
     def get_request_function_for_type(self, request_type):
         return RESTWorker.REST_CALLS[request_type]

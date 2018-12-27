@@ -84,10 +84,11 @@ def fake_job():
             'b'
         ],
         'datamap': {
-            'key1': 'val1',
-            'key2': 'val2'
+            'id': '$.msg.id',
+            'key1': '$.msg.val1',
+            'key2': '$.msg.val2'
         },
-        'url': 'http://someurl',
+        'url': 'http://someurl.com/api/{id}/',
         'query_params': [
             'key1',
             'key2'
@@ -97,6 +98,13 @@ def fake_job():
             'key2'
         ]
     }
+
+
+fake_job_msg = {
+    'id': 'theid',
+    'val1': 'value1',
+    'val2': 'value2'
+}
 
 
 data = {

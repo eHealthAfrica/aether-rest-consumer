@@ -92,6 +92,22 @@ def test_job_handling(Consumer, fake_job):
     jobs = list(Consumer.list_jobs())
     assert(_id in jobs)
     assert(_id in Consumer.children.keys())
+    assert(Consumer.children[_id].status == WorkerStatus.ERR_KAFKA)
+    assert(Consumer.remove_job(_id) is True)
+
+
+@pytest.mark.unit
+def test_job_update_handling(Consumer, fake_job):
+    # Add a job and make sure the subscribtion handler picks it up
+    _id = fake_job['id']
+    assert(Consumer.add_job(fake_job) is True)
+    sleep(1)  # Let the pubsub do it's job so we don't get log spam
+    job = Consumer.get_job(_id)
+    assert(job['modified'] is not None)
+    new_job = dict(fake_job)
+    new_job['type'] = 'GET'
+    assert(Consumer.add_job(new_job) is True)
+    sleep(1)  # let update finish before deleting
     assert(Consumer.remove_job(_id) is True)
 
 
@@ -104,6 +120,7 @@ def test_worker_process_datamap(Worker):
 @responses.activate
 @pytest.mark.unit
 def test_make_get_request(Worker, fake_job):
+    assert(Worker.status == WorkerStatus.ERR_CONFIG)
     job = dict(fake_job)
     job['type'] = 'GET'
     full_url = job['url'].format(id=fake_job_msg['id'])

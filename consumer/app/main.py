@@ -18,8 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# from aet.consumer import KafkaConsumer
-
+import enum
 from datetime import datetime
 import json
 from jsonschema import validate
@@ -28,6 +27,8 @@ import requests
 import signal
 import threading
 from time import sleep
+
+from aet.consumer import KafkaConsumer
 
 from . import settings
 from .healthcheck import HealthcheckServer
@@ -49,6 +50,8 @@ class RESTConsumer(object):
             encoding="utf-8",
             decode_responses=True
         )
+        self.consumer_settings = CSET
+        self.kafka_settings = KSET
         self.recent_changes = []  # To keep track of changes in config
         self.children = {}
         self.schema = self.load_schema()
@@ -104,7 +107,7 @@ class RESTConsumer(object):
             except ValueError:
                 LOG.error(f'Could not start job {_id}, no matching config found in Redis')
                 return
-            self.children[_id] = RESTWorker(_id, config)
+            self.children[_id] = RESTWorker(_id, config, self.kafka_settings)
 
     def stop_child(self, _id):
         LOG.debug(f'handling removal for job:{_id}')
@@ -117,7 +120,8 @@ class RESTConsumer(object):
 
     def stop_all_children(self):
         threads = []
-        for _id in self.children.keys():
+        children = list(self.children.keys())  # we modify the dict, so we need a copy
+        for _id in children:
             try:
                 threads.append(self.stop_child(_id))
             except KeyError:
@@ -161,12 +165,15 @@ class RESTConsumer(object):
         task_id = f'_{type}:{_id}'
         task = self.redis.get(task_id)
         if not task:
-            raise ValueError(f'No job with id {task_id}')
+            raise ValueError(f'No task with id {task_id}')
         return task
 
-    def _list_tasks(self, type):
+    def _list_tasks(self, type=None):
         # jobs as a generator
-        key_identifier = f'_{type}:*'
+        if type:
+            key_identifier = f'_{type}:*'
+        else:
+            key_identifier = '*'
         for i in self.redis.scan_iter(key_identifier):
             yield str(i).split(key_identifier[:-1])[1]
 
@@ -197,13 +204,21 @@ class RESTConsumer(object):
 
 
 class WorkerException(Exception):
-    # A class to handle anticipated fatal exceptions
+    # A class to handle anticipated exceptions
     pass
+
+
+class WorkerStatus(enum.Enum):
+    STARTED = 1
+    RUNNING = 2
+    ERR_KAFKA = 3
+    ERR_CONFIG = 4
+    ERR_DELIVERY = 5
 
 
 class RESTWorker(object):
 
-    REST_CALLS = {
+    REST_CALLS = {  # Available calls mirrored in json schema
         "HEAD": requests.head,
         "GET": requests.get,
         "POST": requests.post,
@@ -212,10 +227,14 @@ class RESTWorker(object):
         "OPTIONS": requests.options
     }
 
-    def __init__(self, _id, config):
+    WORK_LOOP_INTERVAL = 1  # Sleep time between messaging loops
+
+    def __init__(self, _id, config, kafka_config):
         LOG.debug(f'Initalizing worker {_id}')
         self.running = False
+        self.status = WorkerStatus.STARTED
         self._id = _id
+        self.kafka_config = kafka_config
         self.kafka_group = f'RESTWorker:{_id}'
         self.worker = None
         self.topics = []
@@ -225,6 +244,20 @@ class RESTWorker(object):
             self.update_config(config)
         except WorkerException as we:
             LOG.error(f'Could not initalize worker {self._id}: {we}')
+            self.status = WorkerStatus.ERR_CONFIG
+
+    def get_consumer(self, kconf, kafka_group, topics=[]):
+        try:
+            if not topics:
+                raise WorkerException('No topics specified')
+            args = kconf.copy()
+            args['group_id'] = kafka_group
+            consumer = KafkaConsumer(**args)
+            consumer.subscribe(topics)
+        except Exception as ke:
+            self.status = WorkerStatus.ERR_KAFKA
+            LOG.warning(f'Worker {self._id}: Could not connect to Kafka: {ke}')
+            raise WorkerException('No Kafka Connection')
 
     def update_config(self, config):
         LOG.debug(f'Worker {self._id} has a new configuration.')
@@ -246,10 +279,22 @@ class RESTWorker(object):
     def work(self):
         LOG.info(f'Worker on {self._id} started processing.')
         while self.running:
+            if not self.consumer:
+                try:
+                    self.consumer = self.get_consumer(
+                        self.kafka_config,
+                        self.kafka_group,
+                        self.topics
+                    )
+                except WorkerException:
+                    sleep(RESTWorker.WORK_LOOP_INTERVAL)
+                    continue
+
             # poll for new messages
             # get new messages
             # handle each message
-            sleep(.25)
+            self.status = WorkerStatus.RUNNING
+            sleep(RESTWorker.WORK_LOOP_INTERVAL)
         LOG.info(f'Worker on {self._id} is finished.')
 
     def parse_config(self, config):
@@ -257,12 +302,10 @@ class RESTWorker(object):
         try:
             self.url = config['url']
             self.topics = config['topic']
-        except KeyError:
-            LOG.error(f'Job {self._id} has a bad configuration. Job will not run. {config}')
+        except KeyError as err:
+            LOG.error(f'Job {self._id} has a bad configuration. Job will not run. Missing: {err}')
             raise WorkerException('Bad configuration.')
         self.config = config
-
-        return
 
     def handle_message(self, schema, msg):
         whole_message = {'schema': schema, 'msg': msg}

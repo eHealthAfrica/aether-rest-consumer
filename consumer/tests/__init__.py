@@ -23,7 +23,7 @@ import pytest
 import requests  # noqa
 from uuid import uuid4
 
-from app.main import RESTConsumer, RESTWorker
+from app.main import RESTConsumer, RESTWorker, WorkerStatus  # noqa
 from app import settings
 
 kafka_server = "kafka-test:29099"
@@ -66,7 +66,8 @@ def Consumer():
 @pytest.mark.unit
 @pytest.fixture(scope="function")
 def Worker():
-    worker = RESTWorker('_id', {})  # noqa
+    KSET = settings.get_KAFKA_CONFIG()
+    worker = RESTWorker('test_worker_no_config', {}, KSET)  # noqa
     yield worker
     worker.stop()
 

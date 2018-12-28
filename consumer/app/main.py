@@ -254,6 +254,7 @@ class RESTWorker(object):
             args['group_id'] = kafka_group
             consumer = KafkaConsumer(**args)
             consumer.subscribe(topics)
+            return consumer
         except Exception as ke:
             self.status = WorkerStatus.ERR_KAFKA
             LOG.warning(f'Worker {self._id}: Could not connect to Kafka: {ke}')
@@ -281,11 +282,13 @@ class RESTWorker(object):
         while self.running:
             if not self.consumer:
                 try:
+                    LOG.info(f'Worker {self._id}: Creating new Consumer Connection')
                     self.consumer = self.get_consumer(
                         self.kafka_config,
                         self.kafka_group,
                         self.topics
                     )
+                    LOG.info(f'Worker {self._id}: Consumer Connected')
                 except WorkerException:
                     sleep(RESTWorker.WORK_LOOP_INTERVAL)
                     continue
@@ -294,12 +297,16 @@ class RESTWorker(object):
                 new_messages = self.consumer.poll_and_deserialize(
                     timeout_ms=1000,
                     max_records=1)
+                if new_messages:
+                    LOG.debug(f'{self._id} new messages!')
             except Exception as err:
                 # handle failures in polling
                 self.status = WorkerStatus.ERR_KAFKA
                 LOG.warning(f'Worker {self._id} could not poll kafka: {err}')
                 self.consumer = None
                 continue
+            if not new_messages:
+                LOG.debug(f'{self._id} no messages')
             for parition_key, packages in new_messages.items():
                 for package in packages:
                     schema = package.get('schema')
@@ -307,9 +314,12 @@ class RESTWorker(object):
                     for x, msg in enumerate(messages):
                         # handle each message
                         try:
-                            self.handle_message(schema, msg)
+                            res = self.handle_message(schema, msg)
+                            LOG.debug(f'Worker: {self._id} handled' +
+                                      f'msg with status {res.status_code}')
                         except Exception as err:
                             LOG.error(f'Worker {self._id}: message send failed with: {err}')
+                            raise err
 
             self.status = WorkerStatus.RUNNING
             sleep(RESTWorker.WORK_LOOP_INTERVAL)
@@ -322,6 +332,7 @@ class RESTWorker(object):
         try:
             self.url = config['url']
             self.topics = config['topic']
+            self.data_map = config['datamap']
         except KeyError as err:
             LOG.error(f'Job {self._id} has a bad configuration. Job will not run. Missing: {err}')
             raise WorkerException('Bad configuration.')
@@ -369,6 +380,7 @@ class RESTWorker(object):
         json_body = config.get('json_body')
         if json_body:
             json_body = self.data_from_datamap(mapped_data, json_body)
+            LOG.debug(json_body)
         return fn(
             full_url,
             params=params,

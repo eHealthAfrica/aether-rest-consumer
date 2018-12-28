@@ -22,6 +22,7 @@ import json  # noqa
 import pytest
 import responses  # noqa
 import requests  # noqa
+from time import sleep  # noqa
 from uuid import uuid4
 
 from app.main import RESTConsumer, RESTWorker, WorkerStatus  # noqa
@@ -104,15 +105,12 @@ def fake_job():
 
 @pytest.mark.integration
 def generate_callback(job):
-    counter = 0
+    counter = []
 
     def cb(request):
         nonlocal counter
-        counter += 1
-        payload = request.json()
-        for k in job['json_body']:
-            assert(k in payload)
-        return (201, {'counter': counter}, 'ok')
+        counter.append(1)
+        return (201, {}, json.dumps({'counter': counter}))
     return cb, counter
 
 

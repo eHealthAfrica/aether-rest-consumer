@@ -41,16 +41,19 @@ def test_add_get_job(Consumer):
     job = integration_job
     _id = job['id']
     callback, counter = generate_callback(job)
-    full_url = job['url'].format(id=_id)
+    full_url = job['url'].format(type='Person')
+
     responses.add_callback(responses.POST, full_url,
                            callback=callback,
                            match_querystring=False)
-    assert(counter == 0)
+    assert(len(counter) == 0)
     assert(Consumer.add_job(integration_job) is True)
     sleep(1)
     while Consumer.children[_id].status is not WorkerStatus.RUNNING:
         sleep(1)
         print(f'Waiting for status: {Consumer.children[_id].status}')
-    while counter < 40:
-        print(f'progress : {counter/40}')
+    for x in range(30):
+        if sum(counter) >= 10:
+            return
+        print(f'progress : {sum(counter)}')
         sleep(1)

@@ -289,12 +289,32 @@ class RESTWorker(object):
                 except WorkerException:
                     sleep(RESTWorker.WORK_LOOP_INTERVAL)
                     continue
+            try:
+                # poll for new messages
+                new_messages = self.consumer.poll_and_deserialize(
+                    timeout_ms=1000,
+                    max_records=1)
+            except Exception as err:
+                # handle failures in polling
+                self.status = WorkerStatus.ERR_KAFKA
+                LOG.warning(f'Worker {self._id} could not poll kafka: {err}')
+                self.consumer = None
+                continue
+            for parition_key, packages in new_messages.items():
+                for package in packages:
+                    schema = package.get('schema')
+                    messages = package.get('messages')
+                    for x, msg in enumerate(messages):
+                        # handle each message
+                        try:
+                            self.handle_message(schema, msg)
+                        except Exception as err:
+                            LOG.error(f'Worker {self._id}: message send failed with: {err}')
 
-            # poll for new messages
-            # get new messages
-            # handle each message
             self.status = WorkerStatus.RUNNING
             sleep(RESTWorker.WORK_LOOP_INTERVAL)
+        if self.consumer:
+            self.consumer.close()
         LOG.info(f'Worker on {self._id} is finished.')
 
     def parse_config(self, config):

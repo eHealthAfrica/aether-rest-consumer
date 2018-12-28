@@ -59,12 +59,8 @@ def test_init(Consumer):
 @pytest.mark.unit
 def test_validate_fail(Consumer, fake_job):
     del fake_job['id']
-    try:
+    with pytest.raises(ValidationError):
         Consumer.validate_job(fake_job)
-    except ValidationError:
-        pass
-    else:
-        raise ValueError('Bad message not caught.')
 
 
 @pytest.mark.unit
@@ -119,4 +115,18 @@ def test_make_get_request(Worker, fake_job):
     res = Worker.make_request(mapped_data, job)
     for param in job['query_params']:
         assert(param in res.url)
+    assert (res.status_code == 201)
+
+
+@responses.activate
+@pytest.mark.unit
+def test_make_post_request(Worker, fake_job):
+    job = dict(fake_job)
+    full_url = job['url'].format(id=fake_job_msg['id'])
+    msg = {'msg': fake_job_msg}
+    responses.add(responses.POST, full_url,
+                  status=201,
+                  match_querystring=False)
+    mapped_data = Worker.process_data_map(job['datamap'], msg)
+    res = Worker.make_request(mapped_data, job)
     assert (res.status_code == 201)

@@ -25,6 +25,7 @@ import json
 from jsonschema import validate
 import redis
 import requests
+import signal
 import threading
 from time import sleep
 
@@ -53,6 +54,8 @@ class RESTConsumer(object):
         self.schema = self.load_schema()
         self.subscribe_to_jobs()
         self.load_existing_jobs()
+        signal.signal(signal.SIGINT, self.stop)
+        signal.signal(signal.SIGTERM, self.stop)
 
     def serve_healthcheck(self, port):
         self.healthcheck = HealthcheckServer(port)
@@ -106,17 +109,31 @@ class RESTConsumer(object):
     def stop_child(self, _id):
         LOG.debug(f'handling removal for job:{_id}')
         try:
-            self.children[_id].stop()
+            thread = self.children[_id].stop()
             del self.children[_id]
+            return thread
         except KeyError:
             LOG.error(f'Could not remove job {_id}, no matching job found')
 
-    def stop(self):
+    def stop_all_children(self):
+        threads = []
+        for _id in self.children.keys():
+            try:
+                threads.append(self.stop_child(_id))
+            except KeyError:
+                pass
+        if threads:
+            LOG.info(f'Stopping {len(threads)} children')
+            for t in threads:
+                t.join(timeout=5)
+
+    def stop(self, *args, **kwargs):
         LOG.info('Shutting down')
         try:
             self.subscriber.stop()
         except AttributeError:
             pass
+        self.stop_all_children()
         self.healthcheck.stop()
         LOG.info('Shutdown Complete')
 
@@ -179,7 +196,7 @@ class RESTConsumer(object):
         return self._list_tasks(type='job')
 
 
-class WorkerException(exception):
+class WorkerException(Exception):
     # A class to handle anticipated fatal exceptions
     pass
 
@@ -196,8 +213,10 @@ class RESTWorker(object):
     }
 
     def __init__(self, _id, config):
+        LOG.debug(f'Initalizing worker {_id}')
         self.running = False
         self._id = _id
+        self.kafka_group = f'RESTWorker:{_id}'
         self.worker = None
         self.topics = []
         self.consumer = None
@@ -214,9 +233,10 @@ class RESTWorker(object):
             self.running = False
             self.worker.join()
             LOG.debug(f'{self._id} worker stopped.')
-        self.parse_config(config)
         # parse config / setup pipeline
+        self.parse_config(config)
         # start worker with pipeline
+        self.start_worker()
 
     def start_worker(self):
         self.worker = threading.Thread(target=self.work)
@@ -224,6 +244,7 @@ class RESTWorker(object):
         self.worker.start()
 
     def work(self):
+        LOG.info(f'Worker on {self._id} started processing.')
         while self.running:
             # poll for new messages
             # get new messages
@@ -237,7 +258,7 @@ class RESTWorker(object):
             self.url = config['url']
             self.topics = config['topic']
         except KeyError:
-            LOG.error(f'Job {self._id} has a bad configuration. Job will not run.')
+            LOG.error(f'Job {self._id} has a bad configuration. Job will not run. {config}')
             raise WorkerException('Bad configuration.')
         self.config = config
 
@@ -296,6 +317,8 @@ class RESTWorker(object):
 
     def stop(self):
         LOG.debug(f'Worker {self._id} is stopping')
+        self.running = False
+        return self.worker
 
 
 def run():

@@ -20,6 +20,7 @@
 
 import json  # noqa
 import pytest
+import responses  # noqa
 import requests  # noqa
 from uuid import uuid4
 
@@ -101,6 +102,20 @@ def fake_job():
     }
 
 
+@pytest.mark.integration
+def generate_callback(job):
+    counter = 0
+
+    def cb(request):
+        nonlocal counter
+        counter += 1
+        payload = request.json()
+        for k in job['json_body']:
+            assert(k in payload)
+        return (201, {'counter': counter}, 'ok')
+    return cb, counter
+
+
 fake_job_msg = {
     'id': 'theid',
     'val1': 'value1',
@@ -136,4 +151,30 @@ mapping_result = {
     'whole_dict': {'a': 1, 'b': 'two', 'c': '3po'},
     'number': 1.2,
     'boolean': False
+}
+
+integration_job = {
+    'id': str(uuid4()),
+    'owner': 'the owner',
+    'type': 'POST',
+    'topic': [
+            'Person'
+    ],
+    'datamap': {
+        'type': '$.schema.name',
+        'doc': '$.schema.doc',
+        'id': '$.msg.id',
+        'age': '$.msg.age'
+    },
+    'url': 'http://someurl.com/api/{type}/',
+    'query_params': [
+        'id',
+        'age'
+    ],
+    'json_body': [
+        'type',
+        'doc',
+        'id',
+        'age'
+    ]
 }

@@ -33,3 +33,24 @@ from . import *  # get all test assets from test/__init__.py
 @pytest.mark.integration
 def test_healthcheck():
     assert(True)
+
+
+@responses.activate
+@pytest.mark.integration
+def test_add_get_job(Consumer):
+    job = integration_job
+    _id = job['id']
+    callback, counter = generate_callback(job)
+    full_url = job['url'].format(id=_id)
+    responses.add_callback(responses.POST, full_url,
+                           callback=callback,
+                           match_querystring=False)
+    assert(counter == 0)
+    assert(Consumer.add_job(integration_job) is True)
+    sleep(1)
+    while Consumer.children[_id].status is not WorkerStatus.RUNNING:
+        sleep(1)
+        print(f'Waiting for status: {Consumer.children[_id].status}')
+    while counter < 40:
+        print(f'progress : {counter/40}')
+        sleep(1)

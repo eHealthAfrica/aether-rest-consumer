@@ -29,7 +29,6 @@ from . import *  # get all test assets from test/__init__.py
 # `pytest -m unit`
 # to run integration tests / all tests run the test_all.sh script from the /tests directory.
 
-import responses
 from time import sleep
 from jsonschema.exceptions import ValidationError
 

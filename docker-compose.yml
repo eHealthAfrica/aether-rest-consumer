@@ -6,7 +6,7 @@ services:
       file: docker-compose-base.yml
       service: rest-consumer-base
     environment:
-      REDIS_HOST: redis-test
+      REDIS_HOST: redis
     ports:
       - "${EXPOSE_PORT}:${EXPOSE_PORT}"
     networks:

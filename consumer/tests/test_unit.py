@@ -102,6 +102,7 @@ def test_job_handling(Consumer, fake_job):
 def test_job_handling_over_api(Consumer, fake_job):
     # Add a job and make sure the subscribtion handler picks it up
     _id = fake_job['id']
+    print(f'Handling {_id} over API')
     creds = (Consumer.api.admin_name, Consumer.api.admin_password)
     url = 'http://localhost:9013/jobs/'
     add = url + 'add'
@@ -130,6 +131,7 @@ def test_job_handling_over_api(Consumer, fake_job):
 def test_job_update_handling(Consumer, fake_job):
     # Add a job and make sure the subscribtion handler picks it up
     _id = fake_job['id']
+    print(f'Handling {_id} in CODE')
     assert(Consumer.add_job(fake_job) is True)
     sleep(1)  # Let the pubsub do it's job so we don't get log spam
     job = Consumer.get_job(_id)
@@ -137,7 +139,7 @@ def test_job_update_handling(Consumer, fake_job):
     new_job = dict(fake_job)
     new_job['type'] = 'GET'
     assert(Consumer.add_job(new_job) is True)
-    sleep(1)  # let update finish before deleting
+    # sleep(3)  # let update finish before deleting
     assert(Consumer.remove_job(_id) is True)
 
 
@@ -181,7 +183,7 @@ def test_make_post_request(Worker, fake_job):
 
 @responses.activate
 @pytest.mark.unit
-def test_make_authenticated_request(Worker, fake_job):
+def test_make_basic_request(Worker, fake_job):
     creds = {'user': 'someuser', 'password': 'pw'}
     job = dict(fake_job)
     job['basic_auth'] = creds
@@ -200,3 +202,41 @@ def test_make_authenticated_request(Worker, fake_job):
     mapped_data = Worker.process_data_map(job['datamap'], msg)
     res = Worker.make_request(mapped_data, job)
     assert (res.status_code == 200)
+
+
+@responses.activate
+@pytest.mark.unit
+def test_make_token_request(Worker, fake_job):
+    token = 'sometoken'
+    job = dict(fake_job)
+    job['token'] = token
+
+    def check_creds(request):
+        assert('access_token' in request.headers['Authorization'])
+        return (200, request.headers, json.dumps({}))
+
+    full_url = job['url'].format(id=fake_job_msg['id'])
+    msg = {'msg': fake_job_msg}
+
+    responses.add_callback(responses.POST, full_url,
+                           content_type='application/json',
+                           callback=check_creds,
+                           match_querystring=False)
+    mapped_data = Worker.process_data_map(job['datamap'], msg)
+    res = Worker.make_request(mapped_data, job)
+    assert (res.status_code == 200)
+
+
+@pytest.mark.unit
+def test_job_stop_on_shutdown(Consumer, fake_job):
+    # Add a job and make sure the subscribtion handler picks it up
+    _id = fake_job['id']
+    assert(Consumer.add_job(fake_job) is True)
+    sleep(1)  # Let the pubsub do it's job so we don't get log spam
+    job = Consumer.get_job(_id)
+    assert(job['modified'] is not None)
+    new_job = dict(fake_job)
+    new_job['type'] = 'GET'
+    assert(Consumer.add_job(new_job) is True)
+    sleep(1)  # let update finish before deleting
+    assert(len(Consumer.children) > 0)

@@ -31,7 +31,7 @@ from time import sleep
 from aet.consumer import KafkaConsumer
 
 from . import settings
-from .healthcheck import HealthcheckServer
+from .api import APIServer
 from .jsonpath import CachedParser
 from .logger import LOG
 
@@ -41,7 +41,7 @@ EXCLUDED_TOPICS = ['__confluent.support.metrics']
 class RESTConsumer(object):
 
     def __init__(self, CSET, KSET):
-        self.serve_healthcheck(CSET['EXPOSE_PORT'])
+        self.serve_api(CSET)
         self.redis_db = CSET['REDIS_DB']
         self.redis = redis.Redis(
             host=CSET['REDIS_HOST'],
@@ -60,9 +60,9 @@ class RESTConsumer(object):
         signal.signal(signal.SIGINT, self.stop)
         signal.signal(signal.SIGTERM, self.stop)
 
-    def serve_healthcheck(self, port):
-        self.healthcheck = HealthcheckServer(port)
-        self.healthcheck.start()
+    def serve_api(self, settings):
+        self.api = APIServer(self, settings)
+        self.api.serve()
 
     def subscribe_to_jobs(self):
         key_space = f'__keyspace@{self.redis_db}__:_job:*'
@@ -138,7 +138,7 @@ class RESTConsumer(object):
         except AttributeError:
             pass
         self.stop_all_children()
-        self.healthcheck.stop()
+        self.api.stop()
         LOG.info('Shutdown Complete')
 
     # Generic Redis Task Functions
@@ -380,7 +380,6 @@ class RESTWorker(object):
         json_body = config.get('json_body')
         if json_body:
             json_body = self.data_from_datamap(mapped_data, json_body)
-            LOG.debug(json_body)
         return fn(
             full_url,
             params=params,

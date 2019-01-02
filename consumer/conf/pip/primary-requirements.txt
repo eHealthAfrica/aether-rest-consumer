@@ -10,6 +10,7 @@
 
 aet.consumer
 flake8
+flask
 jsonschema
 mock
 pytest
@@ -17,3 +18,4 @@ pytest-runner
 requests
 responses
 redis
+webtest

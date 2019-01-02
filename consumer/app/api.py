@@ -18,15 +18,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
+from functools import wraps
+
 from flask import Flask, Response, request, jsonify
-from gevent.pool import Pool
-from gevent.pywsgi import WSGIServer
+from webtest.http import StopableWSGIServer
 
 
 class APIServer(object):
 
     def __init__(self, consumer, settings):
         self.settings = settings
+        self.consumer = consumer
 
     def serve(self):
         self.app = Flask('RESTConsumer')  # noqa
@@ -34,38 +37,47 @@ class APIServer(object):
             handler = self.app.logger.handlers[0]
         except IndexError:
             handler = logging.StreamHandler()
-            self.app.logger.addHandler(handler)
         finally:
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s [ConsumerAPI] %(levelname)-8s %(message)s'))
+            self.app.logger.addHandler(handler)
             log_level = logging.getLevelName(self.settings
-                                         .get('log_level', 'DEBUG'))
+                                             .get('log_level', 'DEBUG'))
             self.app.logger.setLevel(log_level)
 
         self.app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
-        
-        pool_size = self.settings.get('max_connections', 3)
-        server_ip = self.settings.get('server_ip', "")
+
+        server_ip = self.settings.get('server_ip', '0.0.0.0')
         server_port = int(self.settings.get('EXPOSE_PORT', 9013))
-        self.worker_pool = Pool(pool_size)
-        self.http = WSGIServer(
-            (server_ip, server_port),
-            self.app.wsgi_app, spawn=self.worker_pool
+        self.admin_name = self.settings.get('ADMIN_USER', 'admin')
+        self.admin_password = self.settings.get('ADMIN_PW', 'password')
+        self.http = StopableWSGIServer.create(
+            self.app.wsgi_app,
+            port=server_port,
+            host=server_ip
         )
-        self.http.start()
+        self.app.logger.debug('Http Serve start.')
+        self.add_endpoints()
+        self.app.logger.debug(f'Http Live on {server_ip} : {server_port}')
+
+    def stop(self, *args, **kwargs):
+        self.app.logger.info('Stopping API')
+        self.http.shutdown()
 
     # Flask Functions
 
     def add_endpoints(self):
         # URLS configured here
-        self.register('jobs/add', self.add_job)
+        self.register('jobs/add', self.add_job, methods=['POST'])
         self.register('jobs/delete', self.remove_job)
         self.register('jobs/update', self.add_job)
         self.register('jobs/validate', self.validate_job)
         self.register('jobs/get', self.get_job)
         self.register('jobs/list', self.list_jobs)
-        self.register('healtcheck', self.request_healthcheck)
+        self.register('healthcheck', self.request_healthcheck)
 
-    def register(self, route_name, fn):
-        self.app.add_url_rule('/%s' % route_name, route_name, view_func=fn)
+    def register(self, route_name, fn, **options):
+        self.app.add_url_rule('/%s' % route_name, route_name, view_func=fn, **options)
 
     # Basic Auth implementation
 
@@ -106,18 +118,18 @@ class APIServer(object):
     @requires_auth
     def list_jobs(self):
         with self.app.app_context():
-            return jsonify(self.consumer.list_jobs())
+            return jsonify(list(self.consumer.list_jobs()))
 
     @requires_auth
     def validate_job(self):
-        res = self.consumer.validate_job(**request.args)
+        res = self.consumer.validate_job(**request.data)
         with self.app.app_context():
-            return jsonify({'valid' : res})
+            return jsonify({'valid': res})
 
     def handle_job_crud(self, request, _type):
         _id = request.args.get('id', None)
         if _type == 'CREATE':
-            response = jsonify(self.consumer.add_job(**request.args))
+            response = jsonify(self.consumer.add_job(job=request.get_json()))
         if _type == 'DELETE':
             response = jsonify(self.consumer.remove_job(_id))
         if _type == 'READ':

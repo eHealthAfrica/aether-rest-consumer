@@ -34,12 +34,13 @@ from jsonschema.exceptions import ValidationError
 
 @pytest.mark.unit
 def test_healthcheck(MockConsumer):
-    port = 9098
-    MockConsumer.serve_healthcheck(port)
-    url = 'http://localhost:%s' % port
+    port = 9013
+    settings = {'EXPOSE_PORT': port}
+    MockConsumer.serve_api(settings)
+    url = 'http://localhost:%s/healthcheck' % port
     r = requests.head(url)
     assert(r.status_code == 200)
-    MockConsumer.healthcheck.stop()
+    MockConsumer.api.stop()
     try:
         r = requests.head(url)
         assert(r.status_code == 500)
@@ -51,7 +52,10 @@ def test_healthcheck(MockConsumer):
 
 @pytest.mark.unit
 def test_init(Consumer):
-    pass  # noqa
+    port = 9013
+    url = 'http://localhost:%s/healthcheck' % port
+    r = requests.head(url)
+    assert(r.status_code == 200)
 
 
 @pytest.mark.unit
@@ -92,6 +96,34 @@ def test_job_handling(Consumer, fake_job):
     assert(_id in Consumer.children.keys())
     assert(Consumer.children[_id].status == WorkerStatus.ERR_KAFKA)
     assert(Consumer.remove_job(_id) is True)
+
+
+@pytest.mark.unit
+def test_job_handling_over_api(Consumer, fake_job):
+    # Add a job and make sure the subscribtion handler picks it up
+    _id = fake_job['id']
+    creds = (Consumer.api.admin_name, Consumer.api.admin_password)
+    url = 'http://localhost:9013/jobs/'
+    add = url + 'add'
+    res = requests.post(add, json=fake_job, auth=creds)
+    assert(res.status_code is 200)
+    sleep(1)  # Let the pubsub do it's job so we don't get log spam
+    get = url + f'get?id={_id}'
+    res = requests.get(get, auth=creds)
+    assert(res.status_code is 200)
+    job = res.json()
+    assert(job['modified'] is not None)
+    assert(_id in [c[0] for c in Consumer.recent_changes])
+    _list = url + 'list'
+    res = requests.get(_list, auth=creds)
+    assert(res.status_code is 200)
+    jobs = res.json()
+    assert(_id in jobs)
+    assert(_id in Consumer.children.keys())
+    assert(Consumer.children[_id].status == WorkerStatus.ERR_KAFKA)
+    rem = url + f'delete?id={_id}'
+    res = requests.get(rem, auth=creds)
+    assert(res.status_code is 200)
 
 
 @pytest.mark.unit

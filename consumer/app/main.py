@@ -98,7 +98,11 @@ class RESTConsumer(object):
         LOG.debug(f'handling update for job:{_id}')
         if _id in self.children.keys():
             LOG.debug(f'Child {_id} exists, updating')
-            config = self.get_job(_id)
+            try:
+                config = self.get_job(_id)
+            except ValueError:
+                LOG.error(f'Could not update deleted job {_id}')
+                return
             fn = self.children[_id].update_config
             threading.Thread(target=fn, args=(config,)).start()
         else:
@@ -114,23 +118,21 @@ class RESTConsumer(object):
         LOG.debug(f'handling removal for job:{_id}')
         try:
             thread = self.children[_id].stop()
+            thread.join()
+            self.children[_id].running = False
             del self.children[_id]
-            return thread
+            return True
         except KeyError:
             LOG.error(f'Could not remove job {_id}, no matching job found')
 
     def stop_all_children(self):
-        threads = []
         children = list(self.children.keys())  # we modify the dict, so we need a copy
         for _id in children:
             try:
-                threads.append(self.stop_child(_id))
+                LOG.info(f'Stopping child {_id}')
+                self.stop_child(_id)
             except KeyError:
-                pass
-        if threads:
-            LOG.info(f'Stopping {len(threads)} children')
-            for t in threads:
-                t.join(timeout=5)
+                LOG.info(f'Could not find child {_id} to stop')
 
     def stop(self, *args, **kwargs):
         LOG.info('Shutting down')

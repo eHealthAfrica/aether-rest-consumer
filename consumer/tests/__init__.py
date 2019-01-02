@@ -61,6 +61,7 @@ def Consumer():
     KSET = settings.get_KAFKA_CONFIG()
     consumer = RESTConsumer(CSET, KSET)  # noqa
     yield consumer
+    sleep(2)
     consumer.stop()
 
 

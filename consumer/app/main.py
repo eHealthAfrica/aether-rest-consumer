@@ -24,6 +24,7 @@ import json
 from jsonschema import validate
 import redis
 import requests
+from requests.auth import HTTPBasicAuth
 import signal
 import threading
 from time import sleep
@@ -374,14 +375,22 @@ class RESTWorker(object):
                       f'{url} -> {mapped_data}')
             raise requests.URLRequired(f'bad argument in URL: {ker}')
         fn = self.get_request_function_for_type(request_type)
+        auth = config.get('basic_auth')
+        if auth:
+            auth = HTTPBasicAuth(auth['user'], auth['password'])
         params = config.get('query_params')
         if params:
             params = self.data_from_datamap(mapped_data, params)
         json_body = config.get('json_body')
         if json_body:
             json_body = self.data_from_datamap(mapped_data, json_body)
+        headers = config.get('token')
+        if headers:
+            headers = {'Authorization': f'access_token {headers}'}
         return fn(
             full_url,
+            auth=auth,
+            headers=headers,
             params=params,
             json=json_body
         )

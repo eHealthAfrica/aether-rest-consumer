@@ -177,3 +177,26 @@ def test_make_post_request(Worker, fake_job):
     mapped_data = Worker.process_data_map(job['datamap'], msg)
     res = Worker.make_request(mapped_data, job)
     assert (res.status_code == 201)
+
+
+@responses.activate
+@pytest.mark.unit
+def test_make_authenticated_request(Worker, fake_job):
+    creds = {'user': 'someuser', 'password': 'pw'}
+    job = dict(fake_job)
+    job['basic_auth'] = creds
+
+    def check_creds(request):
+        assert('Authorization' in request.headers)
+        return (200, request.headers, json.dumps({}))
+
+    full_url = job['url'].format(id=fake_job_msg['id'])
+    msg = {'msg': fake_job_msg}
+
+    responses.add_callback(responses.POST, full_url,
+                           content_type='application/json',
+                           callback=check_creds,
+                           match_querystring=False)
+    mapped_data = Worker.process_data_map(job['datamap'], msg)
+    res = Worker.make_request(mapped_data, job)
+    assert (res.status_code == 200)

@@ -72,7 +72,7 @@
         }
       },
       "additionalProperties": false
-    },    
+    },
     "datamap": {
       "$id": "#/properties/datamap",
       "type": "object",

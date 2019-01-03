@@ -211,6 +211,7 @@ class RESTConsumer(object):
                 status[job] = 'unknown'
         return status
 
+
 class WorkerException(Exception):
     # A class to handle anticipated exceptions
     pass

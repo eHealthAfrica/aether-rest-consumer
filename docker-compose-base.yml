@@ -13,6 +13,7 @@ services:
      - KAFKA_CONFIG_PATH=/code/conf/consumer/kafka.json
      - CONSUMER_CONFIG_PATH=/code/conf/consumer/consumer.json
      - EXPOSE_PORT=${EXPOSE_PORT}
+     - LOG_LEVEL=DEBUG
      - REDIS_PORT=6379
      - REDIS_DB=0
 

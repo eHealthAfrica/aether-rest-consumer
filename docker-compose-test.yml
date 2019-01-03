@@ -8,6 +8,7 @@ services:
     environment:
       REDIS_HOST: redis-test
       KAFKA_CONFIG_PATH: /code/conf/consumer/kafka-test.json
+      LOG_LEVEL: CRITICAL
     ports:
       - "${EXPOSE_PORT}:${EXPOSE_PORT}"
     networks:

@@ -203,8 +203,13 @@ class RESTConsumer(object):
         return json.loads(self._get_task(_id, type='job'))
 
     def list_jobs(self):
-        return self._list_tasks(type='job')
-
+        status = {}
+        for job in self._list_tasks(type='job'):
+            if job in self.children:
+                status[job] = str(self.children.get(job).status)
+            else:
+                status[job] = 'unknown'
+        return status
 
 class WorkerException(Exception):
     # A class to handle anticipated exceptions
@@ -293,6 +298,7 @@ class RESTWorker(object):
                     )
                     LOG.info(f'Worker {self._id}: Consumer Connected')
                 except WorkerException:
+                    LOG.debug(f'Worker {self._id}: Could not connect to Kafka.')
                     sleep(RESTWorker.WORK_LOOP_INTERVAL)
                     continue
             try:
@@ -305,7 +311,8 @@ class RESTWorker(object):
             except Exception as err:
                 # handle failures in polling
                 self.status = WorkerStatus.ERR_KAFKA
-                LOG.warning(f'Worker {self._id} could not poll kafka: {err}')
+                LOG.warning(f'Worker {self._id} Could not poll kafka: {err}')
+                self.consumer.close()
                 self.consumer = None
                 continue
             if not new_messages:
@@ -336,13 +343,14 @@ class RESTWorker(object):
             self.url = config['url']
             self.topics = config['topic']
             self.data_map = config['datamap']
+            self.constant = config.get('constant', {})
         except KeyError as err:
             LOG.error(f'Job {self._id} has a bad configuration. Job will not run. Missing: {err}')
             raise WorkerException('Bad configuration.')
         self.config = config
 
     def handle_message(self, schema, msg):
-        whole_message = {'schema': schema, 'msg': msg}
+        whole_message = {'schema': schema, 'msg': msg, 'constant': self.constant}
         mapped_data = self.process_data_map(self.data_map, whole_message)
         return self.make_request(
             mapped_data,
@@ -389,6 +397,7 @@ class RESTWorker(object):
         headers = config.get('token')
         if headers:
             headers = {'Authorization': f'access_token {headers}'}
+        LOG.debug(f'json: {json_body}, url: {full_url}')
         return fn(
             full_url,
             auth=auth,

@@ -7,8 +7,8 @@ services:
     stdin_open: true
     tty: true
     environment:
-     - ADMIN_USER={ADMIN_USER}
-     - ADMIN_PW={ADMIN_PW}
+     - ADMIN_USER=${ADMIN_USER}
+     - ADMIN_PW=${ADMIN_PW}
      - PYTHONUNBUFFERED=1
      - KAFKA_CONFIG_PATH=/code/conf/consumer/kafka.json
      - CONSUMER_CONFIG_PATH=/code/conf/consumer/consumer.json

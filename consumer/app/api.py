@@ -118,7 +118,7 @@ class APIServer(object):
     @requires_auth
     def list_jobs(self):
         with self.app.app_context():
-            return jsonify(list(self.consumer.list_jobs()))
+            return jsonify(dict(self.consumer.list_jobs()))
 
     @requires_auth
     def validate_job(self):

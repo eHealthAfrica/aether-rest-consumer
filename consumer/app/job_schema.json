@@ -55,6 +55,24 @@
         "pattern": "^(.*)$"
       }
     },
+    "constant": {
+      "$id": "#/properties/constant",
+      "type": "object",
+      "title": "Constants available to the datamap",
+      "patternProperties": {
+        "^.*$": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },    
     "datamap": {
       "$id": "#/properties/datamap",
       "type": "object",

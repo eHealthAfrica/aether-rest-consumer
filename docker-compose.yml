@@ -16,6 +16,7 @@ services:
     extends:
       file: docker-compose-base.yml
       service: redis-base
+    command: ["--notify-keyspace-events", "KA", "--appendonly", "yes"]
     networks:
       - aether
 

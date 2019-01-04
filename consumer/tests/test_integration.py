@@ -37,7 +37,7 @@ def test_healthcheck():
 
 @responses.activate
 @pytest.mark.integration
-def test_add_get_job(Consumer):
+def test_add_get_job_read_from_kafka(Consumer):
     job = integration_job
     _id = job['id']
     callback, counter = generate_callback(job)
@@ -49,11 +49,15 @@ def test_add_get_job(Consumer):
     assert(len(counter) == 0)
     assert(Consumer.add_job(integration_job) is True)
     sleep(1)
-    while Consumer.children[_id].status is not WorkerStatus.RUNNING:
+    for x in range(10):
+        if Consumer.children[_id].status is WorkerStatus.RUNNING:
+            break
         sleep(1)
-        print(f'Waiting for status: {Consumer.children[_id].status}')
+    if Consumer.children[_id].status is not WorkerStatus.RUNNING:
+        assert(False), 'Consumer did not start working in time.'
     for x in range(30):
         if sum(counter) >= 10:
+            assert(True)
             return
-        print(f'progress : {sum(counter)}')
         sleep(1)
+    assert(False), 'Operation Timed out.'

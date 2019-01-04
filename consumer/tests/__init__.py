@@ -111,7 +111,7 @@ def generate_callback(job):
     def cb(request):
         nonlocal counter
         counter.append(1)
-        return (201, {}, json.dumps({'counter': counter}))
+        return (201, {}, json.dumps({'counter': sum(counter)}))
     return cb, counter
 
 

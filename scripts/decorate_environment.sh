@@ -17,19 +17,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
-set -Eeuo pipefail
+# Use for TEST only.
 
-pushd aether-bootstrap
-scripts/integration_test_teardown.sh
-scripts/integration_test_setup.sh
-popd
-docker-compose -f docker-compose-test.yml build
-sleep 10  # Wait for Kafka to finish coming up.
-docker-compose -f docker-compose-test.yml run assets-test register
-docker-compose -f docker-compose-test.yml run assets-test generate 10
-docker-compose -f docker-compose-test.yml run rest-consumer-test test_integration
-pushd aether-bootstrap
-scripts/integration_test_teardown.sh
-popd
+cat << 'EOF' >> .env
+# ------------------------------------------------------------------
+# Aether REST Consumer
+# ==================================================================
+EXPOSE_PORT=9013
+ADMIN_USER=admin
+ADMIN_PW=adminadmin
+
+EOF

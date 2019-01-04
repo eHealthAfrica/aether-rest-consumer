@@ -18,18 +18,25 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 set -Eeuo pipefail
 
+{
+    docker network create aether_test
+} || { # catch
+    echo "aether_test is ready."
+}
+{
+    docker network create aether_internal
+} || { # catch
+    echo "aether_internal is ready."
+}
 pushd aether-bootstrap
-scripts/integration_test_teardown.sh
-scripts/integration_test_setup.sh
+scripts/initialise_docker_environment.sh
+cp .env ..
 popd
-docker-compose -f docker-compose-test.yml build
-sleep 10  # Wait for Kafka to finish coming up.
-docker-compose -f docker-compose-test.yml run assets-test register
-docker-compose -f docker-compose-test.yml run assets-test generate 10
-docker-compose -f docker-compose-test.yml run rest-consumer-test test_integration
-pushd aether-bootstrap
-scripts/integration_test_teardown.sh
-popd
+scripts/decorate_environment.sh
+
+scripts/run_unit_tests.sh
+sleep 1
+scripts/decorate_environment.sh
+scripts/run_integration_tests.sh
